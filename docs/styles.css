@@ -147,6 +147,17 @@ p {
   border-radius: 8px;
 }
 
+.product-shots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.product-shot--hud {
+  background: transparent;
+}
+
 .section {
   padding: 36px 0;
   border-top: 1px solid var(--line);
@@ -250,7 +261,8 @@ p {
   }
 
   .feature-grid,
-  .sponsor-grid {
+  .sponsor-grid,
+  .product-shots {
     grid-template-columns: 1fr;
   }
 }

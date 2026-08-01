@@ -3,21 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="QuotaBar 是免费开源的 macOS 菜单栏 Codex 用量监控工具，显示 5 小时与周额度剩余比例、重置倒计时，每 60 秒自动刷新。">
+  <meta name="description" content="QuotaBar 是免费开源的 macOS 菜单栏 Codex 用量监控工具，提供悬浮 HUD、5 小时与周额度、重置倒计时和可选额度提醒。">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#08764f">
   <link rel="canonical" href="https://roketrp.github.io/QuotaBar/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="QuotaBar">
   <meta property="og:title" content="QuotaBar - Codex Usage Tracker for macOS">
-  <meta property="og:description" content="在 macOS 菜单栏查看 Codex 5 小时与周额度、剩余百分比和重置倒计时。免费、开源、本地优先。">
+  <meta property="og:description" content="在 macOS 菜单栏与悬浮 HUD 查看 Codex 5 小时和周额度、重置倒计时与低额度提醒。免费、开源、本地优先。">
   <meta property="og:url" content="https://roketrp.github.io/QuotaBar/">
-  <meta property="og:image" content="https://roketrp.github.io/QuotaBar/assets/quotabar-dashboard.png">
+  <meta property="og:image" content="https://roketrp.github.io/QuotaBar/assets/quotabar-social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="QuotaBar 在 macOS 菜单栏显示 Codex 用量与重置时间">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="QuotaBar - Codex Usage Tracker for macOS">
   <meta name="twitter:description" content="Free and open-source Codex usage monitor for the macOS menu bar.">
-  <meta name="twitter:image" content="https://roketrp.github.io/QuotaBar/assets/quotabar-dashboard.png">
+  <meta name="twitter:image" content="https://roketrp.github.io/QuotaBar/assets/quotabar-social-card.png">
   <title>QuotaBar - 免费开源的 Codex 用量监控与 macOS 菜单栏工具</title>
   <link rel="icon" href="assets/quotabar-icon.png">
   <link rel="stylesheet" href="styles.css">
@@ -31,7 +33,7 @@
     "url": "https://roketrp.github.io/QuotaBar/",
     "downloadUrl": "https://github.com/RoketrP/QuotaBar/releases/latest",
     "codeRepository": "https://github.com/RoketrP/QuotaBar",
-    "softwareVersion": "1.0.0",
+    "softwareVersion": "1.1.0",
     "operatingSystem": "macOS 14 or later",
     "applicationCategory": "UtilitiesApplication",
     "license": "https://opensource.org/license/mit",
@@ -64,30 +66,33 @@
     <section class="intro">
       <p class="eyebrow">macOS 14+ · Apple 芯片</p>
       <h1>Codex 用量，<br>常驻菜单栏。</h1>
-      <p class="lede">免费开源的 macOS 菜单栏 Codex 用量监控工具。显示 5 小时与周额度剩余比例、重置倒计时，每 60 秒自动刷新。</p>
+      <p class="lede">免费开源的 macOS 菜单栏 Codex 用量监控工具。用菜单栏或悬浮 HUD 查看 5 小时与周额度、重置倒计时，并可在额度偏低或重置时提醒。</p>
       <div class="actions">
         <a class="button button--primary" href="https://github.com/RoketrP/QuotaBar/releases/latest">下载最新版</a>
         <a class="button" href="https://github.com/RoketrP/QuotaBar">查看源码</a>
       </div>
-      <img class="product-shot" src="assets/quotabar-dashboard.png" alt="QuotaBar 实时用量界面">
+      <div class="product-shots">
+        <img class="product-shot" src="assets/quotabar-dashboard.png" alt="QuotaBar 详细用量面板">
+        <img class="product-shot product-shot--hud" src="assets/quotabar-hud-v1.1.png" alt="QuotaBar v1.1 悬浮 HUD">
+      </div>
     </section>
 
     <section class="section feature-grid" aria-label="主要功能">
-      <div><strong>Codex 剩余用量</strong><br><span>菜单栏随时查看当前账户的剩余百分比。</span></div>
-      <div><strong>5 小时与周额度</strong><br><span>同时展示额度窗口和重置倒计时。</span></div>
-      <div><strong>本地处理</strong><br><span>没有开发者后端、广告或分析 SDK。</span></div>
+      <div><strong>菜单栏与悬浮 HUD</strong><br><span>左键详细面板、右键快捷菜单，⌥⌘Q 快速显示 HUD。</span></div>
+      <div><strong>额度与重置提醒</strong><br><span>同时展示额度窗口、重置倒计时和可选系统通知。</span></div>
+      <div><strong>本地优先</strong><br><span>使用官方 Codex 登录流程，没有开发者后端、广告或分析 SDK。</span></div>
     </section>
 
     <section class="section" id="english" lang="en">
       <h2>Codex usage at a glance</h2>
-      <p>QuotaBar is a native SwiftUI Codex usage tracker for the macOS menu bar. It monitors your remaining 5-hour and weekly usage limits, shows reset countdowns, and refreshes automatically every 60 seconds.</p>
+      <p>QuotaBar is a native SwiftUI Codex usage tracker for the macOS menu bar. Version 1.1 adds a compact floating HUD, a native right-click menu, the ⌥⌘Q global shortcut, and optional low-quota/reset notifications.</p>
       <p>It is free, open source, local-first, and does not require an OpenAI API key. The current release supports Apple Silicon Macs running macOS 14 or later.</p>
     </section>
 
     <section class="section" id="download">
       <h2>安装</h2>
       <ol class="steps">
-        <li>从 GitHub Releases 下载 `QuotaBar-v1.0.0-macOS-arm64.zip`。</li>
+        <li>从 GitHub Releases 下载 <code>QuotaBar-v1.1.0-macOS-arm64.zip</code>。</li>
         <li>解压后把 QuotaBar 拖入“应用程序”文件夹。</li>
         <li>首次启动时按住 Control 点击 App，选择“打开”，再确认“打开”。</li>
       </ol>
@@ -98,14 +103,16 @@
       <h2>开始使用</h2>
       <ol class="steps">
         <li>启动 QuotaBar，并通过 Codex 官方流程登录 ChatGPT。</li>
-        <li>点击菜单栏中的 QuotaBar 图标查看额度。</li>
-        <li>使用刷新按钮立即更新，或等待每 60 秒自动刷新。</li>
+        <li>左键菜单栏图标打开详细面板，右键打开快捷菜单。</li>
+        <li>在右键菜单或设置中开启悬浮 HUD，也可以按 ⌥⌘Q 快速切换。</li>
+        <li>需要额度提醒时，在设置中主动启用系统通知。</li>
       </ol>
     </section>
 
     <section class="section" id="sponsor">
       <h2>自愿赞助</h2>
       <p>QuotaBar 的所有功能永久免费。赞助金额由你决定，不会解锁或限制任何功能。</p>
+      <p><a class="button button--primary" href="https://afdian.com/a/codex_used">前往爱发电支持 QuotaBar</a></p>
       <div class="sponsor-grid">
         <figure>
           <figcaption>微信</figcaption>

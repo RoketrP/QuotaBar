@@ -35,6 +35,7 @@ private var sponsorResourceBundle: Bundle {
 
 struct SponsorView: View {
     @State private var method: SponsorMethod = .wechat
+    private let afdianURL = URL(string: "https://afdian.com/a/codex_used")!
 
     var body: some View {
         VStack(spacing: 18) {
@@ -59,6 +60,16 @@ struct SponsorView: View {
             }
             .pickerStyle(.segmented)
 
+            Button {
+                NSWorkspace.shared.open(afdianURL)
+            } label: {
+                Label("前往爱发电赞助", systemImage: "arrow.up.right.square")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .help("在浏览器中打开 QuotaBar 的爱发电主页")
+
             if let image = sponsorImage(for: method) {
                 Image(nsImage: image)
                     .resizable()
@@ -75,7 +86,7 @@ struct SponsorView: View {
                 .frame(maxWidth: 360, maxHeight: 480)
             }
 
-            Text("感谢你帮助这个项目继续维护。")
+            Text("也可以使用下方微信或支付宝收款码。感谢你帮助这个项目继续维护。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

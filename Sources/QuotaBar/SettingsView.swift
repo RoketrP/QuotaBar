@@ -139,7 +139,7 @@ struct SettingsView: View {
                 Button {
                     openSponsor()
                 } label: {
-                    Label("查看赞助二维码", systemImage: "heart")
+                    Label("查看赞助方式", systemImage: "heart")
                 }
             }
 

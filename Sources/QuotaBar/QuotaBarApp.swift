@@ -42,13 +42,19 @@ final class QuotaBarAppDelegate: NSObject, NSApplicationDelegate {
         }
         hotKeyController = hotKey
 
+        let arguments = ProcessInfo.processInfo.arguments
         Task {
             await UsageNotificationService.shared.refreshAuthorizationStatus()
+#if DEBUG
+            if arguments.contains("--demo") {
+                model.enterDemoMode()
+                return
+            }
+#endif
             await model.start()
         }
 
 #if DEBUG
-        let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--show-settings") {
             settingsWindow.show()
         }
