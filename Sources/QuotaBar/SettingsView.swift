@@ -65,6 +65,18 @@ struct SettingsView: View {
                     Text("仅图标").tag(StatusItemDisplayStyle.iconOnly)
                 }
                 .pickerStyle(.segmented)
+                Picker("菜单栏额度", selection: $preferences.headlineSelection) {
+                    ForEach(HeadlineSelection.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                Text("指定窗口未返回时显示“--%”，不会用其他窗口冒充。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("本地用量历史") {
+                Toggle("记录最近 30 天额度", isOn: $preferences.historyEnabled)
+                Text("默认关闭。只在本机保存额度快照，不含邮箱或凭证；退出或切换账户时清空。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("查看趋势、导出或清空…") { UsageHistoryWindowController.shared.show() }
             }
 
             Section("快捷操作") {

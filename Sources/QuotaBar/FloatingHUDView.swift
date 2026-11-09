@@ -44,7 +44,7 @@ struct FloatingHUDView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.plain)
-            .disabled(!model.account.isAuthenticated || model.isDemoMode)
+            .disabled(!model.account.isAuthenticated || model.isDemoMode || model.isRefreshing)
             .help("立即刷新")
 
             Button(action: onHide) {
@@ -84,7 +84,8 @@ struct FloatingHUDView: View {
             Spacer(minLength: 0)
 
             HStack {
-                Text(model.isDemoMode ? "演示数据" : "自动刷新：每 60 秒")
+                Text(model.isDemoMode ? "演示数据" : (model.isStale ? "数据已过期 · 自动重连中" : "自动刷新：每 60 秒"))
+                    .foregroundStyle(model.isStale ? .orange : .secondary)
                 Spacer()
                 if let lastUpdated = model.lastUpdated {
                     Text(lastUpdated, format: .dateTime.hour().minute().second())

@@ -3,6 +3,7 @@ import SwiftUI
 
 @MainActor
 final class QuotaBarAppDelegate: NSObject, NSApplicationDelegate {
+    private var wakeObserver: NSObjectProtocol?
     private var floatingPanelController: FloatingPanelController?
     private var statusItemController: StatusItemController?
     private var hotKeyController: GlobalHotKeyController?
@@ -13,6 +14,9 @@ final class QuotaBarAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         let model = AppModel.shared
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { _ in Task { @MainActor in await model.didWake() } }
         let preferences = AppPreferences.shared
         let sponsorWindow = SponsorWindowController()
         let settingsWindow = SettingsWindowController {
@@ -55,6 +59,9 @@ final class QuotaBarAppDelegate: NSObject, NSApplicationDelegate {
         }
 
 #if DEBUG
+        if arguments.contains("--demo-history") {
+            UsageHistoryWindowController.shared.show(preview: true)
+        }
         if arguments.contains("--show-settings") {
             settingsWindow.show()
         }
@@ -69,6 +76,11 @@ final class QuotaBarAppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 #endif
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppModel.shared.shutdown()
+        if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
     }
 
     func applicationShouldHandleReopen(

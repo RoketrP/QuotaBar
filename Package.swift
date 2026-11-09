@@ -22,6 +22,7 @@ let package = Package(
                 .process("Resources")
             ]
         ),
+        .testTarget(name: "QuotaBarAppTests", dependencies: ["QuotaBar", "QuotaBarCore"]),
         .testTarget(
             name: "QuotaBarCoreTests",
             dependencies: ["QuotaBarCore"]

@@ -45,13 +45,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             button.toolTip = "QuotaBar"
         }
 
-        Publishers.CombineLatest3(
-            model.$snapshot,
-            model.$phase,
-            preferences.$statusItemStyle
-        )
-        .sink { [weak self] _, _, _ in self?.updateStatusItem() }
-        .store(in: &cancellables)
+        model.objectWillChange
+            .merge(with: preferences.objectWillChange)
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateStatusItem() }
+            }
+            .store(in: &cancellables)
 
         updateStatusItem()
     }
@@ -110,10 +109,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let refreshItem = item("立即刷新", action: #selector(refreshUsage))
         refreshItem.isEnabled = model.account.isAuthenticated
             && !model.isDemoMode
+            && !model.isRefreshing
             && model.phase != .loadingUsage
             && model.phase != .loggingIn
         menu.addItem(refreshItem)
 
+        menu.addItem(item("本地用量历史…", action: #selector(openHistory)))
         menu.addItem(item("打开官方用量页", action: #selector(openUsageDashboard)))
         menu.addItem(.separator())
         menu.addItem(item("设置…", action: #selector(openSettings), keyEquivalent: ","))
@@ -143,6 +144,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         Task { await model.refresh() }
     }
 
+    @objc private func openHistory() { UsageHistoryWindowController.shared.show() }
+
     @objc private func openUsageDashboard() {
         model.openUsageDashboard()
     }
@@ -162,7 +165,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             style: preferences.statusItemStyle
         )
 
-        button.title = display.title
+        let label = model.selectedWindow.map { window in
+            window.windowDurationMinutes == 300 ? "5h" :
+            window.windowDurationMinutes == 10_080 ? "周" : window.windowLabel
+        } ?? {
+            switch preferences.headlineSelection {
+            case .primary: return "额度"
+            case .fiveHour: return "5h"
+            case .weekly: return "周"
+            case .lowest: return "最低"
+            }
+        }()
+        button.title = (display.title.isEmpty ? "" : "\(label) \(display.title)") + (model.isStale ? " !" : "")
+        button.toolTip = model.isStale ? "额度数据已过期，正在自动重连" : "\(label) · QuotaBar"
+
         if display.showsIcon {
             let image = NSImage(
                 systemSymbolName: symbolName(for: model.headlineRemaining),
@@ -192,6 +208,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private var usageSummary: String {
+        if model.isStale { return "额度数据已过期 · 正在自动重连" }
         guard let windows = model.snapshot?.preferredBucket?.windows,
               !windows.isEmpty
         else {

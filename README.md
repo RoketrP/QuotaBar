@@ -10,11 +10,19 @@
 
 QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 秒自动刷新 Codex 剩余用量、5 小时与周额度窗口、重置时间，让你不用反复打开 Codex 或 ChatGPT 查看使用限制。永久免费、开源，不含广告与分析 SDK。
 
-[下载 v1.1.0](https://github.com/RoketrP/QuotaBar/releases/latest) · [使用帮助](https://roketrp.github.io/QuotaBar/) · [爱发电](https://afdian.com/a/codex_used) · [隐私政策](https://roketrp.github.io/QuotaBar/privacy.html) · [问题反馈](https://github.com/RoketrP/QuotaBar/issues)
+[下载 v1.3.0](https://github.com/RoketrP/QuotaBar/releases/latest) · [使用帮助](https://roketrp.github.io/QuotaBar/) · [爱发电](https://afdian.com/a/codex_used) · [隐私政策](https://roketrp.github.io/QuotaBar/privacy.html) · [问题反馈](https://github.com/RoketrP/QuotaBar/issues)
 
 | 详细用量面板 | 可选悬浮 HUD |
 | --- | --- |
 | ![QuotaBar 详细用量面板](docs/assets/quotabar-dashboard.png) | ![QuotaBar v1.1 悬浮 HUD](docs/assets/quotabar-hud-v1.1.png) |
+
+## 1.3.0 新功能
+
+- 连接可靠性：20 秒请求超时、异常后 5/10/20/40/60 秒重试（429 限流等待 5 分钟）、唤醒后刷新，并标记失败或超过 3 分钟未更新的旧快照。
+- 菜单栏额度：可选主额度、5 小时、周额度或剩余最低的窗口，百分比旁标明窗口类型。指定窗口不存在时显示 `--%`。
+- 本地历史：在设置或“历史”窗口主动启用，保留最近 30 天采样；查看 7/30 天趋势，导出 CSV 或清空。
+- 历史从启用后的成功刷新开始记录，每个额度窗口每分钟最多一条，不包含演示、邮箱或凭证；退出或切换账户时清空。
+- 曲线不跨额度重置或超过 5 分钟的采样空档连接。额度比例不等同 token 消耗、费用或账单。
 
 ## 为什么使用 QuotaBar
 
@@ -32,7 +40,7 @@ QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 �
 
 ## 下载与安装
 
-1. 从 [Releases](https://github.com/RoketrP/QuotaBar/releases/latest) 下载 `QuotaBar-v1.1.0-macOS-arm64.zip`。
+1. 从 [Releases](https://github.com/RoketrP/QuotaBar/releases/latest) 下载 `QuotaBar-v1.3.0-macOS-arm64.zip`。
 2. 解压后把 `QuotaBar.app` 拖入“应用程序”文件夹。
 3. 首次启动时按住 Control 点击 App，选择“打开”，再在系统提示中确认“打开”。
 
@@ -41,7 +49,7 @@ QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 �
 发布页同时提供 SHA-256 文件，可用下面的命令核对下载内容：
 
 ```bash
-shasum -a 256 -c QuotaBar-v1.1.0-macOS-arm64.zip.sha256
+shasum -a 256 -c QuotaBar-v1.3.0-macOS-arm64.zip.sha256
 ```
 
 ## 使用
@@ -73,9 +81,9 @@ QuotaBar 使用 Codex 官方 App Server 读取当前账户授权的额度，不�
 
 当前 GitHub 版本支持 macOS 14 或更高版本的 Apple 芯片 Mac（M1、M2、M3、M4 及后续 Apple Silicon）。暂不提供 Intel 版本。
 
-### 为什么下载包大约有 84 MB？
+### 为什么下载约 84 MB，安装后却超过 200 MB？
 
-QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机完成 ChatGPT 登录和读取额度。这样不要求用户预先安装 Node.js、npm 或 Codex CLI，也不会把密码、Cookie 或登录令牌交给开发者。
+QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机完成 ChatGPT 登录和读取额度。当前发布包解压后约 203.5 MB，其中 Codex 组件约 200.2 MB；QuotaBar 主程序约 1.9 MB。它不包含本地模型权重或用户数据。这样不要求用户预先安装 Node.js、npm 或 Codex CLI，也不会把密码、Cookie 或登录令牌交给开发者。
 
 ### 无法启用系统通知怎么办？
 
@@ -83,7 +91,7 @@ QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机�
 
 ## English Overview
 
-QuotaBar is a native SwiftUI menu bar app for monitoring Codex usage limits on macOS. Version 1.1 adds a compact floating HUD, a native right-click status menu, a global `⌥⌘Q` shortcut, and optional low-quota/reset notifications. QuotaBar is free, MIT-licensed, local-first, and contains no ads or analytics SDKs.
+QuotaBar is a native SwiftUI menu bar app for monitoring Codex usage limits on macOS. Version 1.3 adds automatic connection recovery, explicit stale-data indicators, selectable menu bar quota windows, and opt-in local history with charts and CSV export. QuotaBar is free, MIT-licensed, local-first, and contains no ads or analytics SDKs.
 
 Download the latest Apple Silicon build from [GitHub Releases](https://github.com/RoketrP/QuotaBar/releases/latest). QuotaBar supports macOS 14 or later and does not require an OpenAI API key.
 
@@ -110,7 +118,9 @@ App 内也可通过“设置 → 查看赞助方式”打开爱发电、微信�
 
 - 没有开发者后端、广告 SDK 或分析 SDK
 - ChatGPT 登录凭证由 Codex 官方流程在本机处理
-- 额度快照只保存在运行内存中
+- 默认仅在内存保存额度快照；主动启用历史后，在本机保存最近 30 天的时间、额度窗口、剩余比例与重置时间
+- 为避免混合账户历史，在本机偏好保存邮箱的 SHA-256 指纹；不导出该指纹，退出或切换账户时清空历史
+- 关闭历史记录会保留已有采样；可在“历史”窗口清空或导出
 - 设置保存在 macOS 本地偏好中
 - AI 动态默认关闭；启用后每天最多自动访问一次官方 RSS，手动刷新除外；只在本机缓存公开标题、摘要和链接
 - 爱发电仅在用户点击后由浏览器打开；收款码是静态图片，App 不会自动发起付款或接收支付结果
