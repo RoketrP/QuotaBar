@@ -1,5 +1,7 @@
 import Foundation
 import Testing
+import XCTest
+import Combine
 @testable import QuotaBar
 import QuotaBarCore
 
@@ -9,7 +11,7 @@ final class StubClient: CodexClient {
     var account = CodexAccount(isAuthenticated: true, email: "test@example.invalid", planType: "plus")
     var reads = 0
     var stopped = false
-    var delay = false
+    var beforeRead: (@MainActor (Int) async -> Void)?
     var value: RateLimitSnapshot {
         .init(buckets: [.init(id: "codex", name: nil, planType: nil,
             primary: .init(usedPercent: 20, windowDurationMinutes: 300, resetsAt: Date().addingTimeInterval(500)),
@@ -20,12 +22,26 @@ final class StubClient: CodexClient {
     func readAccount() async throws -> CodexAccount { account }
     func readRateLimits() async throws -> RateLimitSnapshot {
         reads += 1
-        if delay { try await Task.sleep(for: .milliseconds(80)) }
+        if let beforeRead { await beforeRead(reads) }
         if let error { throw error }
         return value
     }
     func beginChatGPTLogin() async throws -> URL { URL(string: "https://example.invalid")! }
     func logout() async throws {}
+}
+
+@MainActor
+private final class ReadGate {
+    let started = XCTestExpectation(description: "Mock quota request started")
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func pause() async {
+        await withCheckedContinuation {
+            continuation = $0
+            started.fulfill()
+        }
+    }
+    func release() { continuation?.resume(); continuation = nil }
 }
 
 @Suite(.serialized) @MainActor
@@ -71,14 +87,18 @@ struct RecoveryTests {
     @Test func coalescesRefreshAndDiscardsLateRealDataAfterEnteringDemo() async {
         let (folder, _, history, preferences) = environment()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let client = StubClient(); client.delay = true
+        let client = StubClient()
+        let gate = ReadGate()
+        client.beforeRead = { _ in await gate.pause() }
         let model = AppModel(makeClient: { client }, history: history, preferences: preferences,
                              processUsage: { _ in }, resetAlerts: {})
         let task = Task { await model.refresh() }
-        try? await Task.sleep(for: .milliseconds(15))
+        let started = await XCTWaiter.fulfillment(of: [gate.started], timeout: 5)
+        #expect(started == .completed)
         await model.refresh()
         #expect(client.reads == 1)
         model.enterDemoMode()
+        gate.release()
         await task.value
         #expect(model.isDemoMode)
         #expect(model.headlineRemaining == 63)
@@ -134,29 +154,51 @@ struct RecoveryTests {
         let bad = StubClient(); bad.error = CodexClientError.serverStopped
         let good = StubClient()
         var attempts = 0
+        let recovered = XCTestExpectation(description: "Background retry completed")
         let model = AppModel(makeClient: { attempts += 1; return attempts == 1 ? bad : good },
-                             history: history, preferences: preferences, processUsage: { _ in }, resetAlerts: {})
+                             history: history, preferences: preferences,
+                             processUsage: { _ in recovered.fulfill() }, resetAlerts: {})
         defer { model.shutdown() }
         await model.start()
         #expect(model.phase == .failed)
-        try await Task.sleep(for: .seconds(6))
+        let result = await XCTWaiter.fulfillment(of: [recovered], timeout: 15)
+        #expect(result == .completed)
         #expect(model.phase == .ready)
         #expect(attempts == 2)
     }
     @Test func accountChangeDuringReadDiscardsOldResult() async throws {
         let (folder, _, history, preferences) = environment()
         defer { try? FileManager.default.removeItem(at: folder) }
-        let client = StubClient(); client.delay = true
+        let client = StubClient()
+        let first = ReadGate()
+        let second = ReadGate()
+        client.beforeRead = { count in
+            if count == 1 { await first.pause() } else { await second.pause() }
+        }
         preferences.historyEnabled = true
+        let completed = XCTestExpectation(description: "New account snapshot accepted")
         let model = AppModel(makeClient: { client }, history: history, preferences: preferences,
-                             processUsage: { _ in }, resetAlerts: {})
+                             processUsage: { _ in completed.fulfill() }, resetAlerts: {})
         let task = Task { await model.refresh() }
-        try await Task.sleep(for: .milliseconds(20))
+        let initialRead = await XCTWaiter.fulfillment(of: [first.started], timeout: 5)
+        #expect(initialRead == .completed)
+        let changed = XCTestExpectation(description: "Account change notification handled")
+        let subscription = model.$phase.dropFirst().filter { $0 == .loadingUsage }.prefix(1)
+            .sink { _ in changed.fulfill() }
+        defer { subscription.cancel() }
         client.account = .init(isAuthenticated: true, email: "new@example.invalid", planType: "plus")
         client.onNotification?("account/updated", .object([:]))
+        let notification = await XCTWaiter.fulfillment(of: [changed], timeout: 5)
+        #expect(notification == .completed)
+        first.release()
         await task.value
+        let nextRead = await XCTWaiter.fulfillment(of: [second.started], timeout: 5)
+        #expect(nextRead == .completed)
         #expect(model.snapshot == nil)
-        try await Task.sleep(for: .milliseconds(150))
+        #expect(history.history.samples.isEmpty)
+        second.release()
+        let accepted = await XCTWaiter.fulfillment(of: [completed], timeout: 5)
+        #expect(accepted == .completed)
         #expect(model.account.email == "new@example.invalid")
         #expect(model.phase == .ready)
         #expect(history.history.samples.count == 1)

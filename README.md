@@ -10,13 +10,13 @@
 
 QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 秒自动刷新 Codex 剩余用量、5 小时与周额度窗口、重置时间，让你不用反复打开 Codex 或 ChatGPT 查看使用限制。永久免费、开源，不含广告与分析 SDK。
 
-[下载 v1.2.0](https://github.com/RoketrP/QuotaBar/releases/latest) · [使用帮助](https://roketrp.github.io/QuotaBar/) · [爱发电](https://afdian.com/a/codex_used) · [隐私政策](https://roketrp.github.io/QuotaBar/privacy.html) · [问题反馈](https://github.com/RoketrP/QuotaBar/issues)
+[下载 v1.3.0](https://github.com/RoketrP/QuotaBar/releases/latest) · [使用帮助](https://roketrp.github.io/QuotaBar/) · [爱发电](https://afdian.com/a/codex_used) · [隐私政策](https://roketrp.github.io/QuotaBar/privacy.html) · [问题反馈](https://github.com/RoketrP/QuotaBar/issues)
 
 | 详细用量面板 | 可选悬浮 HUD |
 | --- | --- |
 | ![QuotaBar 详细用量面板](docs/assets/quotabar-dashboard.png) | ![QuotaBar v1.1 悬浮 HUD](docs/assets/quotabar-hud-v1.1.png) |
 
-## 开发中的 1.3.0（尚未发布）
+## 1.3.0 新功能
 
 - 连接可靠性：20 秒请求超时、异常后 5/10/20/40/60 秒重试（429 限流等待 5 分钟）、唤醒后刷新，并标记失败或超过 3 分钟未更新的旧快照。
 - 菜单栏额度：可选主额度、5 小时、周额度或剩余最低的窗口，百分比旁标明窗口类型。指定窗口不存在时显示 `--%`。
@@ -40,7 +40,7 @@ QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 �
 
 ## 下载与安装
 
-1. 从 [Releases](https://github.com/RoketrP/QuotaBar/releases/latest) 下载 `QuotaBar-v1.2.0-macOS-arm64.zip`。
+1. 从 [Releases](https://github.com/RoketrP/QuotaBar/releases/latest) 下载 `QuotaBar-v1.3.0-macOS-arm64.zip`。
 2. 解压后把 `QuotaBar.app` 拖入“应用程序”文件夹。
 3. 首次启动时按住 Control 点击 App，选择“打开”，再在系统提示中确认“打开”。
 
@@ -49,7 +49,7 @@ QuotaBar 是一款原生 macOS 菜单栏 Codex 用量监控工具。它每 60 �
 发布页同时提供 SHA-256 文件，可用下面的命令核对下载内容：
 
 ```bash
-shasum -a 256 -c QuotaBar-v1.2.0-macOS-arm64.zip.sha256
+shasum -a 256 -c QuotaBar-v1.3.0-macOS-arm64.zip.sha256
 ```
 
 ## 使用
@@ -81,9 +81,9 @@ QuotaBar 使用 Codex 官方 App Server 读取当前账户授权的额度，不�
 
 当前 GitHub 版本支持 macOS 14 或更高版本的 Apple 芯片 Mac（M1、M2、M3、M4 及后续 Apple Silicon）。暂不提供 Intel 版本。
 
-### 为什么下载包大约有 84 MB？
+### 为什么下载约 84 MB，安装后却超过 200 MB？
 
-QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机完成 ChatGPT 登录和读取额度。这样不要求用户预先安装 Node.js、npm 或 Codex CLI，也不会把密码、Cookie 或登录令牌交给开发者。
+QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机完成 ChatGPT 登录和读取额度。当前发布包解压后约 203.5 MB，其中 Codex 组件约 200.2 MB；QuotaBar 主程序约 1.9 MB。它不包含本地模型权重或用户数据。这样不要求用户预先安装 Node.js、npm 或 Codex CLI，也不会把密码、Cookie 或登录令牌交给开发者。
 
 ### 无法启用系统通知怎么办？
 
@@ -91,7 +91,7 @@ QuotaBar 的发布包内嵌了固定版本的官方 Codex CLI，用于在本机�
 
 ## English Overview
 
-QuotaBar is a native SwiftUI menu bar app for monitoring Codex usage limits on macOS. Version 1.1 adds a compact floating HUD, a native right-click status menu, a global `⌥⌘Q` shortcut, and optional low-quota/reset notifications. QuotaBar is free, MIT-licensed, local-first, and contains no ads or analytics SDKs.
+QuotaBar is a native SwiftUI menu bar app for monitoring Codex usage limits on macOS. Version 1.3 adds automatic connection recovery, explicit stale-data indicators, selectable menu bar quota windows, and opt-in local history with charts and CSV export. QuotaBar is free, MIT-licensed, local-first, and contains no ads or analytics SDKs.
 
 Download the latest Apple Silicon build from [GitHub Releases](https://github.com/RoketrP/QuotaBar/releases/latest). QuotaBar supports macOS 14 or later and does not require an OpenAI API key.
 
