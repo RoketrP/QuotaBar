@@ -34,6 +34,8 @@ struct QuotaBarPreferencesTests {
                 style: .percentageOnly
             ) == StatusItemDisplay(title: "--%", showsIcon: false)
         )
+        #expect(StatusItemDisplayFormatter.make(remainingPercent: nil, style: .iconAndPercentage)
+            == StatusItemDisplay(title: "--%", showsIcon: true))
         #expect(
             StatusItemDisplayFormatter.make(
                 remainingPercent: 62.6,

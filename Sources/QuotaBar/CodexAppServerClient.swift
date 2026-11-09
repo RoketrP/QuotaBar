@@ -18,6 +18,7 @@ enum CodexClientError: LocalizedError {
     case binaryNotFound
     case serverNotRunning
     case serverStopped
+    case timedOut
     case malformedResponse
     case remote(String)
 
@@ -29,6 +30,8 @@ enum CodexClientError: LocalizedError {
             return "Codex 服务尚未启动。"
         case .serverStopped:
             return "Codex 服务意外停止了。"
+        case .timedOut:
+            return "读取用量超时，正在尝试重新连接。"
         case .malformedResponse:
             return "Codex 返回了无法识别的数据。"
         case let .remote(message):
@@ -37,7 +40,17 @@ enum CodexClientError: LocalizedError {
     }
 }
 
-final class CodexAppServerClient {
+protocol CodexClient: AnyObject {
+    var onNotification: CodexAppServerClient.NotificationHandler? { get set }
+    func start() async throws
+    func readAccount() async throws -> CodexAccount
+    func readRateLimits() async throws -> RateLimitSnapshot
+    func beginChatGPTLogin() async throws -> URL
+    func logout() async throws
+    func stop()
+}
+
+final class CodexAppServerClient: CodexClient {
     typealias NotificationHandler = @Sendable (String, JSONValue) -> Void
 
     private let binaryURL: URL
@@ -47,17 +60,26 @@ final class CodexAppServerClient {
     private var process: Process?
     private var inputHandle: FileHandle?
     private var outputBuffer = Data()
+    private var generation = UUID()
+    private var readHandles: [FileHandle] = []
+    private let requestTimeout: TimeInterval
     private var nextRequestID = 1
     private var pending: [
-        Int: CheckedContinuation<JSONValue, Error>
+        Int: (continuation: CheckedContinuation<JSONValue, Error>, deadline: DispatchWorkItem)
     ] = [:]
 
-    var onNotification: NotificationHandler?
+    private var notificationHandler: NotificationHandler?
+    var onNotification: NotificationHandler? {
+        get { withStateLock { notificationHandler } }
+        set { withStateLock { notificationHandler = newValue } }
+    }
 
     init(
         binaryURL: URL = CodexBinaryLocator.locate(),
-        codexHomeURL: URL? = CodexHome.defaultURL()
+        codexHomeURL: URL? = CodexHome.defaultURL(),
+        requestTimeout: TimeInterval = 20
     ) {
+        self.requestTimeout = requestTimeout
         self.binaryURL = binaryURL
         self.codexHomeURL = codexHomeURL
     }
@@ -94,10 +116,11 @@ final class CodexAppServerClient {
         }
         task.environment = environment
 
+        let connectionID = UUID()
         standardOutput.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
-            self?.consumeOutput(data)
+            self?.consumeOutput(data, generation: connectionID)
         }
 
         // Drain diagnostics so the helper can never block on a full stderr pipe.
@@ -107,33 +130,46 @@ final class CodexAppServerClient {
         }
 
         task.terminationHandler = { [weak self] _ in
-            self?.handleTermination()
+            self?.handleTermination(generation: connectionID)
         }
-
-        try task.run()
 
         withStateLock {
+            generation = connectionID
             process = task
             inputHandle = standardInput.fileHandleForWriting
+            outputBuffer = Data()
+            readHandles = [standardOutput.fileHandleForReading, standardError.fileHandleForReading]
         }
 
-        let initializeResult = try await request(
-            method: "initialize",
-            params: .object([
-                "clientInfo": .object([
-                    "name": .string("quotabar"),
-                    "title": .string("QuotaBar"),
-                    "version": .string(AppVersion.current)
-                ]),
-                "capabilities": .object([:])
-            ])
-        )
-
-        guard initializeResult.objectValue != nil else {
-            throw CodexClientError.malformedResponse
+        do {
+            try task.run()
+        } catch {
+            stop()
+            throw error
         }
 
-        try sendNotification(method: "initialized", params: .object([:]))
+        do {
+            let initializeResult = try await request(
+                method: "initialize",
+                params: .object([
+                    "clientInfo": .object([
+                        "name": .string("quotabar"),
+                        "title": .string("QuotaBar"),
+                        "version": .string(AppVersion.current)
+                    ]),
+                    "capabilities": .object([:])
+                ])
+            )
+
+            guard initializeResult.objectValue != nil else {
+                throw CodexClientError.malformedResponse
+            }
+
+            try sendNotification(method: "initialized", params: .object([:]))
+        } catch {
+            stop()
+            throw error
+        }
     }
 
     func readAccount() async throws -> CodexAccount {
@@ -194,17 +230,25 @@ final class CodexAppServerClient {
 
     func stop() {
         stateLock.lock()
+        generation = UUID()
         let task = process
         process = nil
         let handle = inputHandle
         inputHandle = nil
+        let handles = readHandles
+        readHandles = []
+        outputBuffer = Data()
+        let requests = Array(pending.values)
+        pending.removeAll()
         stateLock.unlock()
 
+        handles.forEach { $0.readabilityHandler = nil }
         try? handle?.close()
-        if task?.isRunning == true {
-            task?.terminate()
+        if task?.isRunning == true { task?.terminate() }
+        requests.forEach {
+            $0.deadline.cancel()
+            $0.continuation.resume(throwing: CodexClientError.serverStopped)
         }
-        failAllPending(with: CodexClientError.serverStopped)
     }
 
     private func request(method: String, params: JSONValue) async throws -> JSONValue {
@@ -213,23 +257,30 @@ final class CodexAppServerClient {
             nextRequestID += 1
             return value
         }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            stateLock.lock()
-            pending[requestID] = continuation
-            stateLock.unlock()
-
-            do {
-                try write(
-                    .object([
-                        "method": .string(method),
-                        "id": .number(Double(requestID)),
-                        "params": params
-                    ])
-                )
-            } catch {
-                complete(requestID: requestID, result: .failure(error))
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let deadline = DispatchWorkItem { [weak self] in
+                    self?.complete(requestID: requestID, result: .failure(CodexClientError.timedOut))
+                }
+                stateLock.lock()
+                if Task.isCancelled {
+                    stateLock.unlock()
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                pending[requestID] = (continuation, deadline)
+                stateLock.unlock()
+                DispatchQueue.global().asyncAfter(deadline: .now() + requestTimeout, execute: deadline)
+                do {
+                    try write(.object([
+                        "method": .string(method), "id": .number(Double(requestID)), "params": params
+                    ]))
+                } catch {
+                    complete(requestID: requestID, result: .failure(error))
+                }
             }
+        } onCancel: { [weak self] in
+            self?.complete(requestID: requestID, result: .failure(CancellationError()))
         }
     }
 
@@ -259,10 +310,11 @@ final class CodexAppServerClient {
         try handle.write(contentsOf: data)
     }
 
-    private func consumeOutput(_ data: Data) {
+    private func consumeOutput(_ data: Data, generation connectionID: UUID) {
         var completeLines: [Data] = []
 
         stateLock.lock()
+        guard generation == connectionID else { stateLock.unlock(); return }
         outputBuffer.append(data)
         let newline = Data([0x0A])
 
@@ -319,26 +371,28 @@ final class CodexAppServerClient {
         result: Result<JSONValue, Error>
     ) {
         stateLock.lock()
-        let continuation = pending.removeValue(forKey: requestID)
+        let request = pending.removeValue(forKey: requestID)
         stateLock.unlock()
-        continuation?.resume(with: result)
+        request?.deadline.cancel()
+        request?.continuation.resume(with: result)
     }
 
-    private func handleTermination() {
+    private func handleTermination(generation connectionID: UUID) {
         stateLock.lock()
+        guard generation == connectionID else { stateLock.unlock(); return }
         process = nil
         inputHandle = nil
-        stateLock.unlock()
-        failAllPending(with: CodexClientError.serverStopped)
-    }
-
-    private func failAllPending(with error: Error) {
-        stateLock.lock()
-        let continuations = Array(pending.values)
+        let handles = readHandles
+        readHandles = []
+        let requests = Array(pending.values)
         pending.removeAll()
         stateLock.unlock()
-
-        continuations.forEach { $0.resume(throwing: error) }
+        handles.forEach { $0.readabilityHandler = nil }
+        requests.forEach {
+            $0.deadline.cancel()
+            $0.continuation.resume(throwing: CodexClientError.serverStopped)
+        }
+        onNotification?("quotabar/disconnected", .object([:]))
     }
 
     private func withStateLock<T>(_ operation: () throws -> T) rethrows -> T {
@@ -402,6 +456,6 @@ enum AppVersion {
     static var current: String {
         Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
-        ) as? String ?? "1.0.0"
+        ) as? String ?? "1.3.0"
     }
 }

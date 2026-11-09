@@ -13,7 +13,9 @@ struct MenuContentView: View {
             header
             Divider()
 
-            monitorContent
+            ScrollView {
+                monitorContent
+            }.frame(maxHeight: 480)
 
             Divider()
             footer
@@ -89,6 +91,8 @@ struct MenuContentView: View {
             .buttonStyle(.plain)
 
             Spacer()
+            Button("历史") { UsageHistoryWindowController.shared.show() }
+                .buttonStyle(.plain)
 
             Button(action: openSettings) {
                 Image(systemName: "gearshape")
@@ -138,7 +142,18 @@ private struct UsageDashboardView: View {
                 .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
             }
 
-            if let headline = snapshot.headlineWindow {
+            if model.isStale {
+                HStack {
+                    Label("数据已过期 · 正在自动重连", systemImage: "exclamationmark.triangle")
+                    Spacer()
+                    Button("重新登录") { Task { await model.beginLogin() } }
+                        .disabled(model.isRefreshing)
+                }.font(.caption).foregroundStyle(.orange)
+                if let error = model.errorMessage {
+                    Text(error).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            if let headline = model.selectedWindow {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("\(Int(headline.remainingPercent.rounded()))")
                         .font(.system(size: 46, weight: .bold, design: .rounded))
@@ -156,6 +171,8 @@ private struct UsageDashboardView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            } else {
+                Text("所选额度窗口未返回").foregroundStyle(.secondary)
             }
 
             VStack(spacing: 10) {
@@ -193,6 +210,7 @@ private struct UsageDashboardView: View {
                     Label("刷新", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
+                .disabled(model.isRefreshing)
             }
             .font(.caption)
         }
@@ -410,8 +428,8 @@ private struct LoginView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if model.phase == .loggingIn {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView().controlSize(.small)
+                Button("取消登录") { model.cancelLogin() }
             } else {
                 HStack {
                     Button("先看演示") {
@@ -462,6 +480,8 @@ private struct ErrorStateView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            Text("将自动重试，也可以立即重新连接。")
+                .font(.caption).foregroundStyle(.secondary)
             Button("重试") {
                 Task { await model.activate() }
             }

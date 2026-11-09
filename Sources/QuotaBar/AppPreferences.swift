@@ -38,6 +38,14 @@ final class AppPreferences: ObservableObject {
         didSet { defaults.set(officialUpdatesEnabled, forKey: Keys.officialUpdatesEnabled) }
     }
 
+    @Published var headlineSelection: HeadlineSelection {
+        didSet { defaults.set(headlineSelection.rawValue, forKey: "headlineSelection") }
+    }
+
+    @Published var historyEnabled: Bool {
+        didSet { defaults.set(historyEnabled, forKey: "historyEnabled") }
+    }
+
     private let defaults: UserDefaults
 
     private enum Keys {
@@ -51,8 +59,10 @@ final class AppPreferences: ObservableObject {
         static let officialUpdatesEnabled = "officialUpdatesEnabled"
     }
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        headlineSelection = HeadlineSelection(rawValue: defaults.string(forKey: "headlineSelection") ?? "") ?? .primary
+        historyEnabled = defaults.bool(forKey: "historyEnabled")
         defaults.register(defaults: [
             Keys.showFloatingPanel: QuotaBarPreferenceDefaults.showFloatingPanel,
             Keys.floatingAcrossSpaces: QuotaBarPreferenceDefaults.floatingAcrossSpaces,
